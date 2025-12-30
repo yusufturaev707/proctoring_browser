@@ -63,7 +63,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
-        self.showFullScreen()
 
         # Apply modern stylesheet
         self.setStyleSheet(get_full_stylesheet())
@@ -86,6 +85,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._init_workers()
         self._init_ui_components()
         self._connect_signals()
+
+        # Show window after all initialization is complete
+        self.showFullScreen()
 
     def _init_keys(self):
         """Klaviatura tugmalarini bloklash"""
@@ -149,6 +151,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.face_identification_worker = None
         self.screen_recorder_worker = None
         self.load_app_worker = None
+        self.test_loader_worker = None
 
     def _init_ui_components(self):
         """UI komponentlarini sozlash"""
@@ -187,8 +190,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             config = configparser.ConfigParser()
             # Try new config location first
             config_paths = [
-                os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'config', 'config.ini'),
-                os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'config.ini'),
+                os.path.join(os.path.dirname(__file__), '..', '..', '..', 'config', 'config.ini'),
+                os.path.join(os.path.dirname(__file__), '..', '..', '..', 'config.ini'),
             ]
 
             for config_path in config_paths:
@@ -214,8 +217,32 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def _load_tests(self):
         """Testlarni yuklash"""
-        # TestLoaderWorker orqali yuklanadi
-        pass
+        try:
+            self.test_loader_worker = TestLoaderWorker()
+            self.test_loader_worker.result.connect(self._on_tests_loaded)
+            self.test_loader_worker.start()
+        except Exception as e:
+            print(f"Test loader error: {e}")
+
+    @pyqtSlot(object)
+    def _on_tests_loaded(self, data: dict):
+        """Testlar yuklanganda"""
+        try:
+            if data.get("status"):
+                tests = data.get("result", [])
+                self.combo_choose_test.clear()
+                self.combo_choose_test.addItem("Testni tanlang...", None)
+                for test in tests:
+                    test_name = test.get("name", "Nomsiz test")
+                    test_key = test.get("key") or test.get("id")
+                    self.combo_choose_test.addItem(test_name, test_key)
+                print(f"Testlar yuklandi: {len(tests)} ta")
+            else:
+                message = data.get("message", "Testlarni yuklashda xatolik")
+                print(f"Test yuklash xatosi: {message}")
+                self.label_tests.setText(message)
+        except Exception as e:
+            print(f"Tests loaded handler error: {e}")
 
     def show_message(self, title: str, message: str, code: int = 2):
         """Xabar ko'rsatish"""
@@ -258,6 +285,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.face_detector_worker,
             self.screen_recorder_worker,
             self.load_app_worker,
+            self.test_loader_worker,
         ]
 
         for worker in workers:

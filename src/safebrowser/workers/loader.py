@@ -5,8 +5,8 @@ Model va testlarni yuklash
 import requests
 from PyQt6.QtCore import QThread, pyqtSignal
 
-from safebrowser.utils.helpers import init_face_analyzer
-from safebrowser.services.api_client import BASE_URL
+from src.safebrowser.utils.helpers import init_face_analyzer
+from src.safebrowser.services.api_client import BASE_URL
 
 
 class AppLoaderWorker(QThread):
