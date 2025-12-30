@@ -1,0 +1,27 @@
+<RCC>
+  <qresource prefix="static">
+    <file>ps.png</file>
+    <file>face-recognition.png</file>
+    <file>face-scanner.png</file>
+    <file>id.png</file>
+    <file>article-image.png</file>
+    <file>face_id.png</file>
+    <file>i44.png</file>
+    <file>camera.png</file>
+    <file>login4x.png</file>
+    <file>login-page.png</file>
+    <file>ap-hero.svg</file>
+    <file>home.png</file>
+    <file>face_fon.jpg</file>
+    <file>monitoring.png</file>
+    <file>1.jpg</file>
+    <file>2.jpg</file>
+    <file>3.jpg</file>
+    <file>4.png</file>
+    <file>5.jpg</file>
+    <file>6.png</file>
+    <file>no-wifi.png</file>
+    <file>Logo.png</file>
+    <file>img1.jpg</file>
+  </qresource>
+</RCC>
