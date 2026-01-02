@@ -3,17 +3,13 @@ Screen Recorder Worker
 Ekranni yozib olish
 Cross-platform qo'llab-quvvatlash
 """
+import sys
 import time
 import cv2
 import numpy as np
 from datetime import datetime
 from pathlib import Path
 from PyQt6.QtCore import QThread
-
-from src.safebrowser.utils.system import (
-    is_windows, is_linux, is_macos,
-    get_recordings_dir, get_platform_name
-)
 
 # Platform-specific screenshot
 try:
@@ -29,6 +25,42 @@ try:
     MSS_AVAILABLE = True
 except ImportError:
     MSS_AVAILABLE = False
+
+
+# Local platform detection to avoid circular imports
+def _is_windows() -> bool:
+    return sys.platform == 'win32'
+
+
+def _is_linux() -> bool:
+    return sys.platform.startswith('linux')
+
+
+def _is_macos() -> bool:
+    return sys.platform == 'darwin'
+
+
+def _get_platform_name() -> str:
+    if _is_windows():
+        return "Windows"
+    elif _is_macos():
+        return "macOS"
+    elif _is_linux():
+        return "Linux"
+    return sys.platform
+
+
+def _get_recordings_dir() -> Path:
+    """Yozuvlar papkasini qaytarish"""
+    if _is_windows():
+        videos = Path.home() / 'Videos' / 'SafeBrowser'
+    elif _is_macos():
+        videos = Path.home() / 'Movies' / 'SafeBrowser'
+    else:
+        videos = Path.home() / 'Videos' / 'SafeBrowser'
+
+    videos.mkdir(parents=True, exist_ok=True)
+    return videos
 
 
 class ScreenRecorderWorker(QThread):
@@ -47,7 +79,7 @@ class ScreenRecorderWorker(QThread):
         # Auto-generate filename if not provided
         if filename is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            recordings_dir = get_recordings_dir()
+            recordings_dir = _get_recordings_dir()
             self.filename = str(recordings_dir / f"recording_{timestamp}.avi")
         else:
             self.filename = filename
@@ -61,7 +93,7 @@ class ScreenRecorderWorker(QThread):
 
     def _setup_capture_method(self):
         """Platformaga mos capture usulini tanlash"""
-        if is_linux():
+        if _is_linux():
             # Linux: mss afzal (X11/Wayland muammolari kamroq)
             if MSS_AVAILABLE:
                 self._use_mss = True
@@ -72,7 +104,7 @@ class ScreenRecorderWorker(QThread):
             else:
                 print("Linux: Ekran yozish uchun mss yoki pyautogui kerak")
 
-        elif is_macos():
+        elif _is_macos():
             # macOS: pyautogui yaxshi ishlaydi, lekin permissions kerak
             if PYAUTOGUI_AVAILABLE:
                 self._use_mss = False
@@ -122,19 +154,19 @@ class ScreenRecorderWorker(QThread):
     def run(self):
         """Asosiy recording loop"""
         if not PYAUTOGUI_AVAILABLE and not MSS_AVAILABLE:
-            print(f"Screen recording not available on {get_platform_name()}")
+            print(f"Screen recording not available on {_get_platform_name()}")
             return
 
         print(f"Screen recording started: {self.filename}")
-        print(f"Platform: {get_platform_name()}, Method: {'mss' if self._use_mss else 'pyautogui'}")
+        print(f"Platform: {_get_platform_name()}, Method: {'mss' if self._use_mss else 'pyautogui'}")
 
         try:
             screen_size = self._get_screen_size()
 
             # Video codec selection (cross-platform)
-            if is_windows():
+            if _is_windows():
                 fourcc = cv2.VideoWriter_fourcc(*'XVID')
-            elif is_macos():
+            elif _is_macos():
                 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
             else:
                 # Linux

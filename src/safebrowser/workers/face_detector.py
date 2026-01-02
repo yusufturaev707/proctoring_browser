@@ -3,12 +3,11 @@ Face Detector Worker
 InsightFace asosidagi yuz aniqlash
 Cross-platform qo'llab-quvvatlash
 """
+import sys
 import cv2
 import numpy as np
 from PyQt6.QtCore import QThread, pyqtSignal, QMutex, QMutexLocker
 from PyQt6.QtGui import QImage
-
-from src.safebrowser.utils.system import open_camera, get_platform_name
 
 
 class FaceDetectorWorker(QThread):
@@ -54,6 +53,9 @@ class FaceDetectorWorker(QThread):
 
     def _init_camera(self) -> bool:
         """Kamerani ishga tushirish (cross-platform)"""
+        # Lazy import to avoid circular dependency
+        from safebrowser.utils.system import open_camera, get_platform_name
+
         try:
             self.cap = open_camera(
                 camera_index=self.camera_index,

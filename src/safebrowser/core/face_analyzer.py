@@ -7,8 +7,6 @@ import numpy as np
 from typing import Optional, Tuple, List
 from insightface.app import FaceAnalysis
 
-from src.safebrowser.utils.system import get_models_dir
-
 
 class FaceAnalyzer:
     """
@@ -23,15 +21,18 @@ class FaceAnalyzer:
 
     def initialize(self) -> bool:
         """Modelni ishga tushirish (cross-platform)"""
+        # Lazy import to avoid circular dependency
+        from safebrowser.utils.system import get_models_dir
+
+        # Cross-platform models directory
+        models_path = str(get_models_dir())
+        print(f"InsightFace models path: {models_path}")
+
         try:
             if self.gpu_id >= 0:
                 providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
             else:
                 providers = ['CPUExecutionProvider']
-
-            # Cross-platform models directory
-            models_path = str(get_models_dir())
-            print(f"InsightFace models path: {models_path}")
 
             self._app = FaceAnalysis(
                 providers=providers,
@@ -46,9 +47,8 @@ class FaceAnalyzer:
 
         except Exception as e:
             print(f"FaceAnalyzer init error: {e}")
-            # Fallback
+            # Fallback - CPU only
             try:
-                models_path = str(get_models_dir())
                 self._app = FaceAnalysis(
                     providers=['CPUExecutionProvider'],
                     root=models_path

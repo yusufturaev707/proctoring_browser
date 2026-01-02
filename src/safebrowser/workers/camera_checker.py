@@ -9,8 +9,6 @@ import socket
 from urllib.parse import urlparse
 from PyQt6.QtCore import QThread, pyqtSignal
 
-from src.safebrowser.utils.system import open_camera
-
 
 class CameraCheckerWorker(QThread):
     """Kamera mavjudligini tekshiruvchi worker"""
@@ -38,6 +36,9 @@ class CameraCheckerWorker(QThread):
             return False
 
     def run(self):
+        # Lazy import to avoid circular dependency
+        from safebrowser.utils.system import open_camera
+
         while self.running:
             # Local kamerani tekshirish (cross-platform)
             local_camera = False

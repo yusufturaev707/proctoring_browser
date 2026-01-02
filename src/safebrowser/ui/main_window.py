@@ -12,10 +12,10 @@ if _legacy_path not in sys.path:
     sys.path.insert(0, _legacy_path)
 
 # Yangi strukturadan import
-from src.safebrowser.ui.styles import get_full_stylesheet, COLORS
-from src.safebrowser.ui.dialogs import InfoModal, ExitDialog
-from src.safebrowser.ui.generated_ui import Ui_MainWindow
-from src.safebrowser.workers import (
+from safebrowser.ui.styles import get_full_stylesheet, COLORS
+from safebrowser.ui.dialogs import InfoModal, ExitDialog
+from safebrowser.ui.generated_ui import Ui_MainWindow
+from safebrowser.workers import (
     CameraCheckerWorker,
     FaceDetectorWorker,
     CPUOptimizedFaceIdWorker,
@@ -27,15 +27,15 @@ from src.safebrowser.workers import (
     AppLoaderWorker,
     TestLoaderWorker,
 )
-from src.safebrowser.utils.graphics import (
+from safebrowser.utils.graphics import (
     create_success_pixmap,
     create_id_card_pixmap,
     create_lock_icon,
 )
-from src.safebrowser.utils.system import get_disk_with_most_free_space
-from src.safebrowser.services.api_client import APIClient, BASE_URL
-from src.safebrowser.core.face_analyzer import FaceAnalyzer
-from src.safebrowser.utils.system import is_windows, is_linux, is_macos, get_platform_name
+from safebrowser.utils.system import get_disk_with_most_free_space
+from safebrowser.services.api_client import APIClient, BASE_URL
+from safebrowser.core.face_analyzer import FaceAnalyzer
+from safebrowser.utils.system import is_windows, is_linux, is_macos, get_platform_name
 
 # PyQt6 imports
 import configparser

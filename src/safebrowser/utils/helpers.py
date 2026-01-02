@@ -8,8 +8,6 @@ import numpy as np
 from PyQt6.QtGui import QImage
 from insightface.app import FaceAnalysis
 
-from src.safebrowser.utils.system import get_models_dir
-
 
 def init_face_analyzer(det_size: tuple = (640, 640), gpu_id: int = -1):
     """
@@ -22,6 +20,9 @@ def init_face_analyzer(det_size: tuple = (640, 640), gpu_id: int = -1):
     Returns:
         FaceAnalysis app instance
     """
+    # Lazy import to avoid circular dependency
+    from safebrowser.utils.system import get_models_dir
+
     # Cross-platform models directory
     models_path = str(get_models_dir())
 

@@ -6,9 +6,7 @@ Cross-platform qo'llab-quvvatlash
 import requests
 from PyQt6.QtCore import QThread, pyqtSignal
 
-from src.safebrowser.utils.helpers import init_face_analyzer
-from src.safebrowser.services.api_client import BASE_URL
-from src.safebrowser.utils.system import is_macos, get_platform_name
+from safebrowser.services.api_client import BASE_URL
 
 
 class AppLoaderWorker(QThread):
@@ -23,6 +21,9 @@ class AppLoaderWorker(QThread):
 
     def run(self):
         try:
+            # Lazy import to avoid circular dependency
+            from safebrowser.utils.helpers import init_face_analyzer
+
             gpu_id = self._detect_best_device()
 
             self.loaded_app = init_face_analyzer(
@@ -46,6 +47,9 @@ class AppLoaderWorker(QThread):
         - OpenVINO (Intel)
         - CoreML (macOS - Apple Silicon)
         """
+        # Lazy import to avoid circular dependency
+        from safebrowser.utils.system import is_macos, get_platform_name
+
         try:
             import onnxruntime as ort
             providers = ort.get_available_providers()
