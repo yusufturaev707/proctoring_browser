@@ -1,10 +1,13 @@
 """
 Face Analyzer - InsightFace wrapper
 Yuzni aniqlash va tanib olish
+Cross-platform qo'llab-quvvatlash
 """
 import numpy as np
 from typing import Optional, Tuple, List
 from insightface.app import FaceAnalysis
+
+from src.safebrowser.utils.system import get_models_dir
 
 
 class FaceAnalyzer:
@@ -19,16 +22,20 @@ class FaceAnalyzer:
         self._initialized = False
 
     def initialize(self) -> bool:
-        """Modelni ishga tushirish"""
+        """Modelni ishga tushirish (cross-platform)"""
         try:
             if self.gpu_id >= 0:
                 providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
             else:
                 providers = ['CPUExecutionProvider']
 
+            # Cross-platform models directory
+            models_path = str(get_models_dir())
+            print(f"InsightFace models path: {models_path}")
+
             self._app = FaceAnalysis(
                 providers=providers,
-                root="./insightface_models",
+                root=models_path,
                 allowed_modules=['detection', 'recognition']
             )
             self._app.prepare(ctx_id=self.gpu_id, det_size=self.det_size)
@@ -41,9 +48,10 @@ class FaceAnalyzer:
             print(f"FaceAnalyzer init error: {e}")
             # Fallback
             try:
+                models_path = str(get_models_dir())
                 self._app = FaceAnalysis(
                     providers=['CPUExecutionProvider'],
-                    root="./insightface_models"
+                    root=models_path
                 )
                 self._app.prepare(ctx_id=-1, det_size=(320, 320))
                 self._initialized = True

@@ -1,16 +1,19 @@
 """
 Helper Functions for Face Recognition
 InsightFace asosidagi yordamchi funksiyalar
+Cross-platform qo'llab-quvvatlash
 """
 import cv2
 import numpy as np
 from PyQt6.QtGui import QImage
 from insightface.app import FaceAnalysis
 
+from src.safebrowser.utils.system import get_models_dir
+
 
 def init_face_analyzer(det_size: tuple = (640, 640), gpu_id: int = -1):
     """
-    InsightFace FaceAnalysis modelini ishga tushirish
+    InsightFace FaceAnalysis modelini ishga tushirish (cross-platform)
 
     Args:
         det_size: Detection size (kichikroq = tezroq, lekin kamroq aniqlik)
@@ -19,6 +22,9 @@ def init_face_analyzer(det_size: tuple = (640, 640), gpu_id: int = -1):
     Returns:
         FaceAnalysis app instance
     """
+    # Cross-platform models directory
+    models_path = str(get_models_dir())
+
     try:
         if gpu_id >= 0:
             providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
@@ -27,7 +33,7 @@ def init_face_analyzer(det_size: tuple = (640, 640), gpu_id: int = -1):
 
         app = FaceAnalysis(
             providers=providers,
-            root="./insightface_models",
+            root=models_path,
             allowed_modules=['detection', 'recognition']
         )
         app.prepare(ctx_id=gpu_id, det_size=det_size)
@@ -38,7 +44,7 @@ def init_face_analyzer(det_size: tuple = (640, 640), gpu_id: int = -1):
         print(f"FaceAnalysis init error: {e}")
         app = FaceAnalysis(
             providers=['CPUExecutionProvider'],
-            root="./insightface_models"
+            root=models_path
         )
         app.prepare(ctx_id=-1, det_size=(320, 320))
         return app

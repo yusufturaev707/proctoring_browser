@@ -12,10 +12,10 @@ if _legacy_path not in sys.path:
     sys.path.insert(0, _legacy_path)
 
 # Yangi strukturadan import
-from safebrowser.ui.styles import get_full_stylesheet, COLORS
-from safebrowser.ui.dialogs import InfoModal, ExitDialog
-from safebrowser.ui.generated_ui import Ui_MainWindow
-from safebrowser.workers import (
+from src.safebrowser.ui.styles import get_full_stylesheet, COLORS
+from src.safebrowser.ui.dialogs import InfoModal, ExitDialog
+from src.safebrowser.ui.generated_ui import Ui_MainWindow
+from src.safebrowser.workers import (
     CameraCheckerWorker,
     FaceDetectorWorker,
     CPUOptimizedFaceIdWorker,
@@ -27,18 +27,28 @@ from safebrowser.workers import (
     AppLoaderWorker,
     TestLoaderWorker,
 )
-from safebrowser.utils.graphics import (
+from src.safebrowser.utils.graphics import (
     create_success_pixmap,
     create_id_card_pixmap,
     create_lock_icon,
 )
-from safebrowser.utils.system import get_disk_with_most_free_space
-from safebrowser.services.api_client import APIClient, BASE_URL
+from src.safebrowser.utils.system import get_disk_with_most_free_space
+from src.safebrowser.services.api_client import APIClient, BASE_URL
+from src.safebrowser.core.face_analyzer import FaceAnalyzer
+from src.safebrowser.utils.system import is_windows, is_linux, is_macos, get_platform_name
 
 # PyQt6 imports
 import configparser
-import keyboard
 import requests
+import cv2
+
+# Platform-specific keyboard blocking
+try:
+    import keyboard
+    KEYBOARD_AVAILABLE = True
+except ImportError:
+    KEYBOARD_AVAILABLE = False
+    print("keyboard moduli mavjud emas - tugmalarni bloklash ishlamaydi")
 
 from PyQt6.QtCore import Qt, QUrl, QRegularExpression, pyqtSlot
 from PyQt6.QtGui import (
@@ -90,10 +100,59 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.showFullScreen()
 
     def _init_keys(self):
-        """Klaviatura tugmalarini bloklash"""
+        """
+        Klaviatura tugmalarini bloklash (cross-platform)
+
+        Windows: keyboard kutubxonasi yaxshi ishlaydi
+        Linux: root/sudo talab qiladi
+        macOS: Accessibility permissions talab qiladi
+        """
+        if not KEYBOARD_AVAILABLE:
+            print(f"Keyboard blocking not available on {get_platform_name()}")
+            return
+
         try:
-            for key in ['alt', 'tab', 'win', 'f4', 'caps lock', 'print screen']:
-                keyboard.block_key(key)
+            if is_windows():
+                # Windows: to'liq bloklash
+                keys_to_block = ['alt', 'tab', 'win', 'f4', 'caps lock', 'print screen']
+                for key in keys_to_block:
+                    try:
+                        keyboard.block_key(key)
+                    except Exception as e:
+                        print(f"Cannot block {key}: {e}")
+                print("Windows klaviatura tugmalari bloklandi")
+
+            elif is_linux():
+                # Linux: faqat root da ishlaydi
+                import os
+                is_root = False
+                try:
+                    is_root = os.geteuid() == 0
+                except AttributeError:
+                    # geteuid Windows da mavjud emas
+                    is_root = False
+
+                if is_root:
+                    keys_to_block = ['alt', 'tab', 'print_screen']
+                    for key in keys_to_block:
+                        try:
+                            keyboard.block_key(key)
+                        except Exception:
+                            pass
+                    print("Linux klaviatura tugmalari bloklandi (root)")
+                else:
+                    print("Linux: Tugmalarni bloklash uchun root kerak")
+
+            elif is_macos():
+                # macOS: keyboard library cheklangan ishlaydi
+                # Accessibility permissions kerak
+                print("macOS: Tugmalarni bloklash qo'llab-quvvatlanmaydi")
+                # macOS da boshqa yechim - PyObjC ishlatish mumkin
+                # lekin bu qo'shimcha dependency talab qiladi
+
+            else:
+                print(f"Platform {get_platform_name()}: Tugmalarni bloklash qo'llab-quvvatlanmaydi")
+
         except Exception as e:
             print(f"Block keys error: {e}")
 
@@ -124,6 +183,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.chosen_test_key = None
         self.warning_text = None
         self.app = None
+        self.face_analyzer = None
         self.state = None
 
         # Settings
@@ -149,9 +209,30 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.face_detector_worker = None
         self.face_identification_worker = None
+        self.face_staff_worker = None
         self.screen_recorder_worker = None
         self.load_app_worker = None
         self.test_loader_worker = None
+
+        # InsightFace modelini yuklash
+        self._init_face_analyzer()
+
+    def _init_face_analyzer(self):
+        """InsightFace modelini yuklash"""
+        try:
+            print("InsightFace modeli yuklanmoqda...")
+            self.face_analyzer = FaceAnalyzer(det_size=(320, 320), gpu_id=-1)
+
+            if self.face_analyzer.initialize():
+                self.app = self.face_analyzer.app
+                print("InsightFace modeli muvaffaqiyatli yuklandi!")
+            else:
+                self.app = None
+                print("InsightFace modelini yuklashda xatolik!")
+        except Exception as e:
+            print(f"FaceAnalyzer init error: {e}")
+            self.app = None
+            self.face_analyzer = None
 
     def _init_ui_components(self):
         """UI komponentlarini sozlash"""
@@ -235,7 +316,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 for test in tests:
                     test_name = test.get("name", "Nomsiz test")
                     test_key = test.get("key") or test.get("id")
-                    self.combo_choose_test.addItem(test_name, test_key)
+                    # Test ma'lumotlarini userData sifatida saqlash
+                    self.combo_choose_test.addItem(test_name, test)
                 print(f"Testlar yuklandi: {len(tests)} ta")
             else:
                 message = data.get("message", "Testlarni yuklashda xatolik")
@@ -346,8 +428,141 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         pass
 
     def _on_staff_face_page(self):
-        """Xodim yuz sahifasiga o'tish"""
-        pass
+        """Xodim yuz sahifasiga o'tish - test tanlangandan keyin"""
+        try:
+            # Tanlangan testni olish
+            current_index = self.combo_choose_test.currentIndex()
+            test_data = self.combo_choose_test.currentData()
+
+            # Test tanlanganligini tekshirish
+            if current_index == 0 or test_data is None:
+                self.show_message("Ogohlantirish", "Iltimos, testni tanlang!", 1)
+                return
+
+            # Test ma'lumotlarini saqlash
+            self.chosen_test_key = test_data.get("key") or test_data.get("id")
+            self.test_name = test_data.get("name")
+
+            # Serverdan kelgan sozlamalarni setting_mode dan olish
+            setting_mode = test_data.get("setting_mode", {})
+            self.is_check_face_staff = setting_mode.get("is_check_face_staff", False)
+            self.is_check_face_candidate = setting_mode.get("is_check_face_candidate", False)
+            self.is_detect_monitor = setting_mode.get("is_detect_monitor", False)
+            self.is_detect_camera = setting_mode.get("is_detect_camera", False)
+            self.is_screen_record = setting_mode.get("is_screen_record", False)
+            self.is_face_identification = setting_mode.get("is_face_identification", False)
+            self.warning_text = test_data.get("warning_text")
+
+            print(f"Tanlangan test: {self.test_name}, key: {self.chosen_test_key}")
+            print(f"Staff face check: {self.is_check_face_staff}")
+
+            # Agar xodim yuz tekshiruvi yoqilgan bo'lsa - page_home ga o'tish
+            if self.is_check_face_staff:
+                self._next_page_by_name('page_home')
+                self._start_staff_face_recognition()
+            else:
+                # Aks holda to'g'ridan-to'g'ri PINFL sahifasiga o'tish
+                self._next_page_by_name('page_pinfl')
+
+        except Exception as e:
+            print(f"Staff face page error: {e}")
+            self.show_message("Xatolik", f"Xatolik yuz berdi: {e}", 0)
+
+    def _start_staff_face_recognition(self):
+        """Xodim yuz tekshiruvini boshlash"""
+        try:
+            if self.app is None:
+                self.show_message("Xatolik", "Yuz aniqlash modeli yuklanmagan!", 0)
+                return
+
+            # Oldingi worker'larni to'xtatish
+            if self.face_detector_worker and self.face_detector_worker.isRunning():
+                self.face_detector_worker.stop()
+
+            if self.face_staff_worker and self.face_staff_worker.isRunning():
+                self.face_staff_worker.stop()
+
+            # Face Detector Worker'ni boshlash
+            self.face_detector_worker = FaceDetectorWorker(app=self.app, camera_index=0)
+            self.face_detector_worker.face_detected.connect(self._on_staff_face_detected)
+            self.face_detector_worker.start()
+
+            # Staff Face ID Worker'ni boshlash
+            self.face_staff_worker = FaceIdStaffWorker(app=self.app)
+            self.face_staff_worker.result_ready.connect(self._on_staff_face_result)
+            self.face_staff_worker.start()
+
+            print("Staff face recognition boshlandi...")
+
+        except Exception as e:
+            print(f"Start staff face recognition error: {e}")
+            self.show_message("Xatolik", f"Yuz tekshiruvini boshlashda xatolik: {e}", 0)
+
+    @pyqtSlot(object)
+    def _on_staff_face_detected(self, data: dict):
+        """Xodim yuzi aniqlanganda"""
+        try:
+            qt_image = data.get("image")
+            cropped_face = data.get("crop_face")
+            has_face = data.get("has_face", False)
+
+            # Kamera tasvirini ko'rsatish (label_face page_home da)
+            if qt_image and not qt_image.isNull():
+                pixmap = QPixmap.fromImage(qt_image)
+                scaled = pixmap.scaled(
+                    self.label_face.size(),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation
+                )
+                self.label_face.setPixmap(scaled)
+
+            # Yuz aniqlansa, staff worker'ga yuborish
+            if has_face and cropped_face is not None and self.face_staff_worker:
+                # RGB formatga o'tkazish
+                if len(cropped_face.shape) == 3:
+                    rgb_face = cv2.cvtColor(cropped_face, cv2.COLOR_BGR2RGB)
+                else:
+                    rgb_face = cropped_face
+
+                self.face_staff_worker.set_face(cropped_face=rgb_face)
+
+        except Exception as e:
+            print(f"Staff face detected handler error: {e}")
+
+    @pyqtSlot(object)
+    def _on_staff_face_result(self, data: dict):
+        """Xodim yuz tekshiruvi natijasi"""
+        try:
+            is_verified = data.get("is_verified", False)
+            message = data.get("message", "")
+
+            if is_verified:
+                # Muvaffaqiyatli - natijani ko'rsatish
+                self.label_response.setText("✓ Xodim tasdiqlandi!")
+                self.label_response.setStyleSheet(
+                    "color: #22c55e; font-size: 18px; font-weight: bold;"
+                )
+
+                # Face detection'ni to'xtatish
+                if self.face_detector_worker and self.face_detector_worker.isRunning():
+                    self.face_detector_worker.stop()
+
+                if self.face_staff_worker and self.face_staff_worker.isRunning():
+                    self.face_staff_worker.stop()
+
+                # PINFL sahifasiga o'tish
+                self._next_page_by_name('page_pinfl')
+                print(f"Xodim tasdiqlandi: {message}")
+
+            else:
+                # Xatolik - tekshiruv davom etadi
+                self.label_response.setText(f"Tekshirilmoqda... {message}")
+                self.label_response.setStyleSheet(
+                    "color: #f59e0b; font-size: 14px;"
+                )
+
+        except Exception as e:
+            print(f"Staff face result handler error: {e}")
 
     def _on_start_test(self):
         """Testni boshlash"""

@@ -1,35 +1,63 @@
 # SafeBrowser Dependencies
+# Cross-platform: Windows, Linux, macOS
 # Install: pip install -r requirements.txt
 
 # ============================================
-# GUI Framework
+# GUI Framework (Cross-platform)
 # ============================================
 PyQt6>=6.4.0
 PyQt6-WebEngine>=6.4.0
 
 # ============================================
-# Computer Vision & Face Recognition
+# Computer Vision & Face Recognition (Cross-platform)
 # ============================================
 opencv-python>=4.8.0
 numpy>=1.24.0
 insightface>=0.7.3
 
-# ONNX Runtime (CPU version by default)
-# For GPU support, install onnxruntime-gpu instead
+# ONNX Runtime - Platform-specific options:
+# Default (CPU): works on all platforms
 onnxruntime>=1.15.0
-# onnxruntime-gpu>=1.15.0  # Uncomment for NVIDIA GPU
+
+# GPU options (uncomment based on your system):
+# NVIDIA GPU (Windows/Linux):
+# onnxruntime-gpu>=1.15.0
+
+# AMD GPU (Windows only):
+# onnxruntime-directml>=1.15.0
+
+# Apple Silicon (macOS):
+# onnxruntime-silicon>=1.15.0
 
 # ============================================
-# Network & API
+# Network & API (Cross-platform)
 # ============================================
 requests>=2.28.0
 
 # ============================================
 # System & Input Control
 # ============================================
-keyboard>=0.13.5
-pyautogui>=0.9.53
 psutil>=5.9.0
+
+# Screen capture - Cross-platform
+pyautogui>=0.9.53
+mss>=9.0.0  # Better Linux/Wayland support
+
+# Keyboard control - Platform notes:
+# - Windows: Full support
+# - Linux: Requires root/sudo for key blocking
+# - macOS: Limited support, needs accessibility permissions
+keyboard>=0.13.5
+
+# ============================================
+# Platform-specific (optional)
+# ============================================
+
+# Linux X11 support (install if needed):
+# python-xlib>=0.33
+
+# macOS specific (for better keyboard support):
+# pyobjc-framework-Quartz>=9.0
 
 # ============================================
 # Development (optional)
@@ -39,3 +67,24 @@ psutil>=5.9.0
 # black>=23.0.0
 # isort>=5.12.0
 # mypy>=1.0.0
+
+# ============================================
+# Platform Installation Notes
+# ============================================
+#
+# WINDOWS:
+#   pip install -r requirements.txt
+#   # For NVIDIA GPU:
+#   pip install onnxruntime-gpu
+#
+# LINUX (Ubuntu/Debian):
+#   sudo apt-get install python3-tk python3-dev
+#   pip install -r requirements.txt
+#   # For screen recording on Wayland, mss is recommended
+#
+# macOS:
+#   pip install -r requirements.txt
+#   # Grant accessibility permissions for keyboard blocking
+#   # Grant screen recording permissions for pyautogui
+#   # For Apple Silicon GPU:
+#   pip install onnxruntime-silicon

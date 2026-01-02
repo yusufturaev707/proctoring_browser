@@ -1,11 +1,14 @@
 """
 Face Detector Worker
 InsightFace asosidagi yuz aniqlash
+Cross-platform qo'llab-quvvatlash
 """
 import cv2
 import numpy as np
 from PyQt6.QtCore import QThread, pyqtSignal, QMutex, QMutexLocker
 from PyQt6.QtGui import QImage
+
+from src.safebrowser.utils.system import open_camera, get_platform_name
 
 
 class FaceDetectorWorker(QThread):
@@ -50,19 +53,20 @@ class FaceDetectorWorker(QThread):
         print("Face Detector Worker stopped")
 
     def _init_camera(self) -> bool:
-        """Kamerani ishga tushirish"""
+        """Kamerani ishga tushirish (cross-platform)"""
         try:
-            self.cap = cv2.VideoCapture(self.camera_index, cv2.CAP_DSHOW)
-            if not self.cap.isOpened():
-                print(f"Camera {self.camera_index} ochilmadi")
+            self.cap = open_camera(
+                camera_index=self.camera_index,
+                width=self.frame_width,
+                height=self.frame_height,
+                fps=30
+            )
+
+            if self.cap is None or not self.cap.isOpened():
+                print(f"Camera {self.camera_index} ochilmadi ({get_platform_name()})")
                 return False
 
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.frame_width)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.frame_height)
-            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            self.cap.set(cv2.CAP_PROP_FPS, 30)
-
-            print(f"Camera {self.camera_index} initialized")
+            print(f"Camera {self.camera_index} initialized ({get_platform_name()})")
             return True
         except Exception as e:
             print(f"Camera init error: {e}")

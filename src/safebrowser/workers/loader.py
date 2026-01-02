@@ -1,12 +1,14 @@
 """
 App and Test Loader Workers
 Model va testlarni yuklash
+Cross-platform qo'llab-quvvatlash
 """
 import requests
 from PyQt6.QtCore import QThread, pyqtSignal
 
 from src.safebrowser.utils.helpers import init_face_analyzer
 from src.safebrowser.services.api_client import BASE_URL
+from src.safebrowser.utils.system import is_macos, get_platform_name
 
 
 class AppLoaderWorker(QThread):
@@ -34,30 +36,48 @@ class AppLoaderWorker(QThread):
 
     def _detect_best_device(self) -> int:
         """
-        Eng yaxshi qurilmani aniqlash
+        Eng yaxshi qurilmani aniqlash (cross-platform)
+
         Returns: 0+ = GPU, -1 = CPU
+
+        Qo'llab-quvvatlanadigan GPU'lar:
+        - NVIDIA CUDA (Windows/Linux)
+        - DirectML (Windows - AMD/Intel/NVIDIA)
+        - OpenVINO (Intel)
+        - CoreML (macOS - Apple Silicon)
         """
         try:
             import onnxruntime as ort
             providers = ort.get_available_providers()
+            print(f"Platform: {get_platform_name()}")
             print(f"Mavjud providerlar: {providers}")
 
-            # NVIDIA GPU (CUDA)
+            # NVIDIA GPU (CUDA) - Windows/Linux
             if 'CUDAExecutionProvider' in providers:
                 print("GPU (NVIDIA CUDA) topildi - GPU ishlatiladi")
                 return 0
 
-            # AMD GPU (DirectML - Windows)
+            # macOS Apple Silicon (CoreML)
+            if is_macos() and 'CoreMLExecutionProvider' in providers:
+                print("GPU (Apple CoreML) topildi - GPU ishlatiladi")
+                return 0
+
+            # AMD/Intel/NVIDIA GPU (DirectML) - Windows
             if 'DmlExecutionProvider' in providers:
                 print("GPU (DirectML) topildi - GPU ishlatiladi")
                 return 0
 
-            # Intel GPU (OpenVINO)
+            # Intel GPU (OpenVINO) - Cross-platform
             if 'OpenVINOExecutionProvider' in providers:
                 print("GPU (OpenVINO) topildi - GPU ishlatiladi")
                 return 0
 
-            print("GPU topilmadi - CPU ishlatiladi")
+            # ROCm for AMD GPUs on Linux
+            if 'ROCMExecutionProvider' in providers:
+                print("GPU (AMD ROCm) topildi - GPU ishlatiladi")
+                return 0
+
+            print(f"GPU topilmadi ({get_platform_name()}) - CPU ishlatiladi")
             return -1
 
         except Exception as e:

@@ -1,12 +1,15 @@
 """
 Camera Checker Worker
 Kamera holatini tekshirish
+Cross-platform qo'llab-quvvatlash
 """
 import cv2
 import time
 import socket
 from urllib.parse import urlparse
 from PyQt6.QtCore import QThread, pyqtSignal
+
+from src.safebrowser.utils.system import open_camera
 
 
 class CameraCheckerWorker(QThread):
@@ -36,10 +39,12 @@ class CameraCheckerWorker(QThread):
 
     def run(self):
         while self.running:
-            # Local kamerani tekshirish
-            cap = cv2.VideoCapture(0)
-            local_camera = cap.isOpened()
-            cap.release()
+            # Local kamerani tekshirish (cross-platform)
+            local_camera = False
+            cap = open_camera(camera_index=0)
+            if cap is not None:
+                local_camera = cap.isOpened()
+                cap.release()
 
             data = {
                 'local_camera': local_camera,
